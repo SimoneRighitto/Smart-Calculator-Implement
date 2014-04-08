@@ -4,10 +4,10 @@ package ch.heigvd.res.toolkit;
 import ch.heigvd.res.toolkit.interfaces.IProtocolHandler;
 import ch.heigvd.res.toolkit.interfaces.IProtocolSerializer;
 import ch.heigvd.res.toolkit.interfaces.IInterfaceController;
-import ch.heigvd.res.toolkit.pingpong.PingPongInterfaceController;
-import ch.heigvd.res.toolkit.pingpong.PingPongProtocol;
-import ch.heigvd.res.toolkit.pingpong.PingPongProtocolHandler;
-import ch.heigvd.res.toolkit.pingpong.PingPongProtocolSerializer;
+import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcInterfaceController;
+import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcProtocol;
+import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcProtocolHandler;
+import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcProtocolSerializer;
 
 /**
  * This class only defines the main() method to start a server. The server uses
@@ -27,18 +27,18 @@ public class ApplicationProtocolToolkit {
 		
 		// We will use a particular communication interface to interact with peers.
 		// (the inteface may rely on TCP, UDP but maybe also on HTTP, E-MAIL, etc.)
-		IInterfaceController interfaceController = new PingPongInterfaceController(PingPongProtocol.DEFAULT_PORT);
+		IInterfaceController interfaceController = new SmartCalcInterfaceController(SmartCalcProtocol.DEFAULT_UDP_PORT);
 
 		// We will exchange "raw" serialized data on an interface. Therefore, we need 
 		// a class to take care of the serialization/deserialization of this raw data
 		// from/into application-level messages
-		IProtocolSerializer protocolSerializer = new PingPongProtocolSerializer();
+		IProtocolSerializer protocolSerializer = new SmartCalcProtocolSerializer();
 		
 		// We use a protocol to communicate with other parties. We need a class to
 		// be responsible for the semantics of the protocol (the class knows what
 		// needs to be done when certain messages are received via a communication
 		// interface
-		IProtocolHandler protocolHandler = new PingPongProtocolHandler(protocolSerializer);
+		IProtocolHandler protocolHandler = new SmartCalcProtocolHandler(protocolSerializer);
 		
 		// We need the inteface controller to be connected to the protocol handler,
 		// so that messages arriving on the communication interface can be processed
