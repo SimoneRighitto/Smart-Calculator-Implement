@@ -30,6 +30,11 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 	boolean shouldRun = true;
 
 	MulticastSocket mcSocket;
+	DatagramPacket udpPacket;
+	byte[] buf;
+	String msgString;
+
+	private InetAddress destIP;
 
 	private final Map<Long, DynamicDiscoveryWorker> dynamicDiscoveryWorker = new HashMap<>();
 
@@ -41,30 +46,36 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 		@Override
 		public void run() {
 
-			try {
+			while (shouldRun) {
+				try {
 
-				mcSocket = new MulticastSocket(
-						ComputingEngProtocol.DEFAULT_UDP_PORT);
+					mcSocket = new MulticastSocket(
+							ComputingEngProtocol.DEFAULT_UDP_PORT);
 
-				mcSocket.joinGroup(InetAddress
-						.getByName(ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS));
+					mcSocket.joinGroup(InetAddress
+							.getByName(ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS));
 
-				System.out.println("Computing Engine listening multicast: "
-						+ ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS
-						+ " over UDP port "
-						+ ComputingEngProtocol.DEFAULT_UDP_PORT);
-				new Thread(new DynamicDiscoveryWorker()).start();
+					System.out.println("Computing Engine listening multicast: "
+							+ ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS
+							+ " over UDP port "
+							+ ComputingEngProtocol.DEFAULT_UDP_PORT);
 
-			} catch (UnknownHostException u) {
-				// TODO Auto-generated catch block
-				u.printStackTrace();
-				System.exit(0);
-			} catch (IOException ioE) {
-				// TODO Auto-generated catch block
-				ioE.printStackTrace();
-				System.exit(0);
+					buf = new byte[ComputingEngProtocol.BUFFER_SIZE];
+					udpPacket = new DatagramPacket(buf, buf.length);
+					
+					mcSocket.receive(udpPacket);
+					new Thread(new DynamicDiscoveryWorker(udpPacket)).start();
+
+				} catch (UnknownHostException u) {
+					// TODO Auto-generated catch block
+					u.printStackTrace();
+					System.exit(0);
+				} catch (IOException ioE) {
+					// TODO Auto-generated catch block
+					ioE.printStackTrace();
+					System.exit(0);
+				}
 			}
-
 		}
 	}
 
@@ -76,20 +87,13 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 	 */
 	private class DynamicDiscoveryWorker implements Runnable {
 
-		private DatagramSocket dSocket;
 		private final long sessionId;
+		private DatagramPacket internUdpPacket;
 
-		private byte[] buf;
-		private DatagramPacket udpPacket;
-		private String msgString;
+		public DynamicDiscoveryWorker(DatagramPacket udpPacket) throws IOException {
 
-		private InetAddress destIP;
 
-		public DynamicDiscoveryWorker() throws IOException {
-
-			buf = new byte[ComputingEngProtocol.BUFFER_SIZE];
-			udpPacket = new DatagramPacket(buf, buf.length);
-
+			this.internUdpPacket=udpPacket;
 			Session newSession = createSession();
 			sessionId = newSession.getSessionId();
 			UdpLineInterfaceController.this.dynamicDiscoveryWorker.put(
@@ -102,25 +106,19 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 
 			try {
 
-				mcSocket.receive(udpPacket);
-				destIP = udpPacket.getAddress();
-				msgString = new String(udpPacket.getData(),
-						udpPacket.getOffset(), udpPacket.getLength());
+				destIP = internUdpPacket.getAddress();
+				msgString = new String(internUdpPacket.getData(),
+						internUdpPacket.getOffset(), internUdpPacket.getLength());
 
 				Message msg = getProtocolHandler().getProtocolSerializer()
 						.deserialize(msgString.getBytes());
 
 				System.out.println("ComputingEngine has received:");
 				System.out.println(msgString);
-				System.out.println(msg.getType());
 
 				UdpLineInterfaceController.this.onMessage(sessionId, msg);
 			} catch (InvalidMessageException e) {
-				UdpLineInterfaceController.this.onInvalidMessage(sessionId,
-						e);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				UdpLineInterfaceController.this.onInvalidMessage(sessionId, e);
 			}
 
 			UdpLineInterfaceController.this.closeSession(sessionId);
@@ -136,12 +134,20 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 		public void send(String data) {
 			DatagramSocket dsocket;
 			try {
-				dsocket = new DatagramSocket(
-						ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT, destIP);
+				dsocket = new DatagramSocket();
+				if (destIP != null) {
+					dsocket = new DatagramSocket(
+							ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT,
+							destIP);
+				} else {
+					internUdpPacket
+							.setAddress(InetAddress
+									.getByName(ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS));
+					internUdpPacket.setPort(ComputingEngProtocol.DEFAULT_UDP_PORT);
+				}
+				internUdpPacket.setData(data.getBytes());
 
-				udpPacket.setData(data.getBytes());
-
-				dsocket.send(udpPacket);
+				dsocket.send(internUdpPacket);
 			} catch (SocketException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();

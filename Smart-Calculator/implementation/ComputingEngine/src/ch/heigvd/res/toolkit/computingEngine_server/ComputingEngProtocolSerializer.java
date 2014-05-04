@@ -24,7 +24,10 @@ public class ComputingEngProtocolSerializer implements IProtocolSerializer {
 		message = new Message(ComputingEngProtocol.MessageType.MSG_HELLO);
 		}
 		else{
-			throw new InvalidMessageException();
+			message = new Message(ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
+			message.setAttribute("port", arguments.get(0));
+			message.setAttribute("ip", arguments.get(1));
+			
 		}
 		message.setAttribute("command", tokens[0]);
 

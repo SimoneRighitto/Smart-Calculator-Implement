@@ -91,11 +91,20 @@ public class ComputingEngProtocolStateMachine extends AbstractStateMachine imple
 			if (state == ComputingEngProtocol.State.STATE_START_UP) {
 				//Normally here we have to send a multicast message: HERE_I_AM 
 				//
-//				Message msg = new Message(PingPongProtocol.MessageType.MESSAGE_TYPE_NOTIFICATION);
-//				msg.setAttribute("payload", PingPongProtocol.NOTIFICATION_WELCOME_TEXT);
-//				getContext().sendMessage(msg);
+				Message hereIAm = new Message(
+						ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
+
+						hereIAm.setAttribute("command", ComputingEngProtocol.MSG_HERE_I_AM);
+						hereIAm.setAttribute("port",
+						ComputingEngProtocol.DEFAULT_TCP_PORT);
+						hereIAm.setAttribute("ip",
+						ComputingEngProtocol.PROTOCOL_COMPUTING_ENGINE_IP);
+
+				//getContext().sendMessage(hereIAm);
+				
+
 				triggerTransitionToState(ComputingEngProtocol.State.STATE_LISTENING);
-				//inactivityGuard.notifyClientActivity();
+
 			}
 
 //			/*
@@ -114,62 +123,6 @@ public class ComputingEngProtocolStateMachine extends AbstractStateMachine imple
 		@Override
 		public void onEvent(Event e) {
 			LOG.log(Level.INFO, "State Machine has received an event: {0} - {1}", new Object[]{e.getType(), e});
-
-//			if (e.getType() == ComputingEngProtocol.EventType.EVENT_TYPE_MAX_IDLE_TIME_REACHED) {
-//				Message timerNotification = new Message(PingPongProtocol.MessageType.MESSAGE_TYPE_NOTIFICATION);
-//				timerNotification.setAttribute("payload", PingPongProtocol.NOTIFICATION_IDLE_TEXT);
-//				getContext().sendMessage(timerNotification);
-//				lateCount++;
-//				return;
-//			}
-
-//			// If we have received an invalid message from the client we return an error message
-//			if (e.getType() == Event.EventType.EVENT_TYPE_INVALID_MESSAGE_ARRIVED) {
-//				Message reply = new Message(ComputingEngProtocol.MessageType.);
-//				reply.setAttribute("statusCode", 400);
-//				reply.setAttribute("payload", PingPongProtocol.RESULT_INVALID_CMD_TEXT);
-//				getContext().sendMessage(reply);
-//				return;
-//			}
-
-			// If we have received a message from the client, we have to update the last activity timestamp
-//			if (e.getType() == Event.EventType.EVENT_TYPE_MESSAGE_ARRIVED) {
-//				inactivityGuard.notifyClientActivity();
-//			}
-
-			// Whatever the state, if we receive a BYE command, we know what to do
-//			if (e.getType() == Event.EventType.EVENT_TYPE_MESSAGE_ARRIVED) {
-//				Message incomingMessage = (Message) (e.getAttribute("message"));
-//				String command = (String) incomingMessage.getAttribute("command");
-//				if (PingPongProtocol.Command.CMD_BYE.getKeyword().equals(command)) {
-//					Message lastMessage = new Message(PingPongProtocol.MessageType.MESSAGE_TYPE_RESULT);
-//					lastMessage.setAttribute("payload", PingPongProtocol.RESULT_BYE_TEXT);
-//					getContext().sendMessage(lastMessage);
-//					triggerTransitionToState(PingPongProtocol.State.STATE_END);
-//					return;
-//				}
-//			}
-
-//			// Whatever the state, if we receive a SCORE command, we know what to do
-//			if (e.getType() == Event.EventType.EVENT_TYPE_MESSAGE_ARRIVED) {
-//				Message incomingMessage = (Message) (e.getAttribute("message"));
-//				String command = (String) incomingMessage.getAttribute("command");
-//				if (PingPongProtocol.Command.CMD_SCORE.getKeyword().equals(command)) {
-//					Message scoreMessage = new Message(PingPongProtocol.MessageType.MESSAGE_TYPE_RESULT);
-//					StringBuilder scoreMessagePayload = new StringBuilder();
-//					scoreMessagePayload.append("Missed: ")
-//									.append(missedCount)
-//									.append(" Successful: ")
-//									.append(successCount)
-//									.append(" Late: ")
-//									.append(lateCount);
-//
-//					scoreMessage.setAttribute("statusCode", "200");
-//					scoreMessage.setAttribute("payload", scoreMessagePayload.toString());
-//					getContext().sendMessage(scoreMessage);
-//					return;
-//				}
-//			}
 
 //			// Whatever the state, if we receive a HELP command, we know what to do
 //			if (e.getType() == Event.EventType.EVENT_TYPE_MESSAGE_ARRIVED) {
@@ -220,7 +173,7 @@ public class ComputingEngProtocolStateMachine extends AbstractStateMachine imple
 					
 					if (getCurrentState() == ComputingEngProtocol.State.STATE_LISTENING) {
 						successful = (command.equals(ComputingEngProtocol.Command.CMD_HELLO.getKeyword()));
-						targetState = ComputingEngProtocol.State.STATE_RESPONDING;
+				
 					} 
 //					else {
 //						successful = (command.equals(PingPongProtocol.Command.CMD_PONG.getKeyword()));
