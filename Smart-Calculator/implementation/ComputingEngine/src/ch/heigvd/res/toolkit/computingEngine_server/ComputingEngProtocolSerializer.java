@@ -19,12 +19,14 @@ public class ComputingEngProtocolSerializer implements IProtocolSerializer {
 		for (int i = 1; i < tokens.length; i++) {
 			arguments.add(tokens[i]);
 		}
-
-		Message message = new Message(
-				ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
+		Message message;
+		if(tokens[0].compareTo(ComputingEngProtocol.MSG_HELLO)==0){
+		message = new Message(ComputingEngProtocol.MessageType.MSG_HELLO);
+		}
+		else{
+			throw new InvalidMessageException();
+		}
 		message.setAttribute("command", tokens[0]);
-		message.setAttribute("arguments", arguments);
-		message.setAttribute("payload", new String(data));
 
 		boolean validCommand = false;
 		for (Command protocolCommand : ComputingEngProtocol.Command.values()) {
@@ -50,7 +52,8 @@ public class ComputingEngProtocolSerializer implements IProtocolSerializer {
 			break;
 		case MSG_HERE_I_AM:
 			sb.append(ComputingEngProtocol.MSG_HERE_I_AM + ":");
-			sb.append(message.getAttribute("payload"));
+			sb.append(message.getAttribute("port")+":");
+			sb.append(message.getAttribute("ip"));
 			break;
 		}
 

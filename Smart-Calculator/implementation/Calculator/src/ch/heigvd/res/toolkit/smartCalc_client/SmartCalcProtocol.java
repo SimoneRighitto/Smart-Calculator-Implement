@@ -11,6 +11,8 @@ import ch.heigvd.res.toolkit.interfaces.IState;
  */
 public class SmartCalcProtocol {
 
+	public final static int BUFFER_SIZE = 512;
+	
 	/**
 	 * The default UDP port on which the client is using for Dynamic Discovery
 	 */

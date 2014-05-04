@@ -1,10 +1,6 @@
-
 package ch.heigvd.res.toolkit;
 
-import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngInterfaceController;
-import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngProtocol;
-import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngProtocolHandler;
-import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngProtocolSerializer;
+
 import ch.heigvd.res.toolkit.interfaces.IProtocolHandler;
 import ch.heigvd.res.toolkit.interfaces.IProtocolSerializer;
 import ch.heigvd.res.toolkit.interfaces.IInterfaceController;
@@ -21,49 +17,58 @@ import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcProtocolSerializer;
  * @author Olivier Liechti
  */
 public class ApplicationProtocolToolkit {
-	
-	
 
 	/**
-	 * @param args the command line arguments
+	 * @param args
+	 *            the command line arguments
 	 */
 	public static void main(String[] args) {
-		
-		boolean useUDP = true;
-		
-		//System.setProperty("java.util.logging.SimpleFormatter.format", "%2$s %n---> %5$s %n %n");
-		System.setProperty("java.util.logging.SimpleFormatter.format", "%5$s %n");
-		
-		// We will use a particular communication interface to interact with peers.
-		// (the inteface may rely on TCP, UDP but maybe also on HTTP, E-MAIL, etc.)
-		
-//		IInterfaceController interfaceController = new SmartCalcInterfaceController(SmartCalcProtocol.DEFAULT_UDP_PORT);
-		IInterfaceController interfaceController = new ComputingEngInterfaceController(ComputingEngProtocol.DEFAULT_UDP_PORT );
 
-		// We will exchange "raw" serialized data on an interface. Therefore, we need 
-		// a class to take care of the serialization/deserialization of this raw data
+		
+		// System.setProperty("java.util.logging.SimpleFormatter.format",
+		// "%2$s %n---> %5$s %n %n");
+		System.setProperty("java.util.logging.SimpleFormatter.format",
+				"%5$s %n");
+
+		// We will use a particular communication interface to interact with
+		// peers.
+		// (the inteface may rely on TCP, UDP but maybe also on HTTP, E-MAIL,
+		// etc.)
+
+		IInterfaceController interfaceController = new SmartCalcInterfaceController(
+				SmartCalcProtocol.DEFAULT_UDP_PORT);
+
+		// We will exchange "raw" serialized data on an interface. Therefore, we
+		// need
+		// a class to take care of the serialization/deserialization of this raw
+		// data
 		// from/into application-level messages
-//		IProtocolSerializer protocolSerializer = new SmartCalcProtocolSerializer();
-		IProtocolSerializer protocolSerializer = new ComputingEngProtocolSerializer();
-		
-		// We use a protocol to communicate with other parties. We need a class to
-		// be responsible for the semantics of the protocol (the class knows what
-		// needs to be done when certain messages are received via a communication
+		IProtocolSerializer protocolSerializer = new SmartCalcProtocolSerializer();
+
+		// We use a protocol to communicate with other parties. We need a class
+		// to
+		// be responsible for the semantics of the protocol (the class knows
+		// what
+		// needs to be done when certain messages are received via a
+		// communication
 		// interface
-//		IProtocolHandler protocolHandler = new SmartCalcProtocolHandler(protocolSerializer);
-		IProtocolHandler protocolHandler = new ComputingEngProtocolHandler(protocolSerializer);
-		
-		// We need the inteface controller to be connected to the protocol handler,
-		// so that messages arriving on the communication interface can be processed
-		// by the protocol handler, and so that the results produced by the protocol
+		IProtocolHandler protocolHandler = new SmartCalcProtocolHandler(
+				protocolSerializer);
+
+		// We need the inteface controller to be connected to the protocol
+		// handler,
+		// so that messages arriving on the communication interface can be
+		// processed
+		// by the protocol handler, and so that the results produced by the
+		// protocol
 		// handler can be sent back via the interface controller
-//		interfaceController.registerProcotolHandler(protocolHandler);
 		interfaceController.registerProcotolHandler(protocolHandler);
-		
-		// We are ready, so let us start the interface controller and accept incoming
+
+		// We are ready, so let us start the interface controller and accept
+		// incoming
 		// messages
-//		interfaceController.startup();
+
 		interfaceController.startup();
 	}
-	
+
 }

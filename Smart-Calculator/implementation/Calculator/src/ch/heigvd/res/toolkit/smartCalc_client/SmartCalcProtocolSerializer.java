@@ -20,11 +20,16 @@ public class SmartCalcProtocolSerializer implements IProtocolSerializer {
 			arguments.add(tokens[i]);
 		}
 
-		Message message = new Message(
-				SmartCalcProtocol.MessageType.MSG_HERE_I_AM);
+		Message message;
+		if(tokens[0].compareTo(SmartCalcProtocol.MSG_HERE_I_AM)==0){
+		message = new Message(SmartCalcProtocol.MessageType.MSG_HERE_I_AM);
+		}
+		else{
+			throw new InvalidMessageException();
+		}
 		message.setAttribute("command", tokens[0]);
-		message.setAttribute("arguments", arguments);
-		message.setAttribute("payload", new String(data));
+		message.setAttribute("port", arguments);
+		message.setAttribute("ip", new String(data));
 
 		boolean validCommand = false;
 		for (Command protocolCommand : SmartCalcProtocol.Command.values()) {

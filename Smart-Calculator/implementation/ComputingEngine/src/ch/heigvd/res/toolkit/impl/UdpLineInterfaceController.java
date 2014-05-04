@@ -20,32 +20,18 @@ import java.util.logging.Logger;
 
 import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngProtocol;
 
-/**
- * This class implements a specific interface controller, which 1) uses TCP as
- * an underlying transport protocol and 2) uses a simple line-by-line message
- * demarcation method.
- * 
- * In other words, the server reads the data sent by the client and considers
- * that each line contains data that can be transformed into one
- * application-level message.
- * 
- * The interface controller is multi-threaded. One thread is used to accept
- * connection requests, one more thread is used for each connected client.
- * 
- * @author Olivier Liechti
- */
 public class UdpLineInterfaceController extends AbstractInterfaceController {
 
-	final static Logger LOG = Logger.getLogger(UdpLineInterfaceController.class
+	final static Logger LOG = Logger.getLogger(TcpLineInterfaceController.class
 			.getName());
 
 	int port;
 
 	boolean shouldRun = true;
 
-	private MulticastSocket mcSocket;
+	MulticastSocket mcSocket;
 
-	private final Map<Long, ClientWorker> clientWorkers = new HashMap<>();
+	private final Map<Long, DynamicDiscoveryWorker> dynamicDiscoveryWorker = new HashMap<>();
 
 	/**
 	 * This class implements the method that runs on the "listen" thread and is
@@ -67,7 +53,7 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 						+ ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS
 						+ " over UDP port "
 						+ ComputingEngProtocol.DEFAULT_UDP_PORT);
-				new Thread(new DynamicDiscoveryWorker(mcSocket)).start();
+				new Thread(new DynamicDiscoveryWorker()).start();
 
 			} catch (UnknownHostException u) {
 				// TODO Auto-generated catch block
@@ -82,122 +68,62 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 		}
 	}
 
-	private class DynamicDiscoveryWorker implements Runnable {
-
-		private MulticastSocket mcSocket;
-		private byte[] buf;
-		private DatagramPacket udpPacket;
-		private String msg;
-
-		public DynamicDiscoveryWorker(MulticastSocket mcSocket)
-				throws IOException {
-
-			this.mcSocket = mcSocket;
-			buf = new byte[ComputingEngProtocol.BUFFER_SIZE];
-			udpPacket = new DatagramPacket(buf, buf.length);
-
-		}
-
-		@Override
-		public void run() {
-
-			while (true) {
-				try {
-
-					mcSocket.receive(udpPacket);
-					msg = new String(udpPacket.getData(),
-							udpPacket.getOffset(), udpPacket.getLength());
-
-					Message msgHello = getProtocolHandler()
-							.getProtocolSerializer()
-							.deserialize(msg.getBytes());
-
-					System.out.println("ComputingEngine has received:");
-					System.out.println(msg);
-					System.out.println(msgHello.getType());
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidMessageException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-
-		public void sendHereIAm(InetAddress dstIP) throws SocketException {
-			DatagramSocket dsocket = new DatagramSocket(
-					ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT, dstIP);
-
-			Message hereIAm = new Message(
-					ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
-
-			hereIAm.setAttribute("command", ComputingEngProtocol.MSG_HERE_I_AM);
-			hereIAm.setAttribute("arguments",
-					ComputingEngProtocol.DEFAULT_TCP_PORT);
-			hereIAm.setAttribute("arguments",
-					ComputingEngProtocol.PROTOCOL_COMPUTING_ENGINE_IP);
-			udpPacket.setData(getProtocolHandler().getProtocolSerializer()
-					.serialize(hereIAm));
-
-			try {
-
-				dsocket.send(udpPacket);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-
-	}
-
 	/**
 	 * This class is responsible for managing a client connection. It provides a
 	 * method that executes on its own thread. The class exposes two methods
 	 * that are invoked via the IContext and the IInterfaceController
 	 * interfaces: 1) sendMessage and 2) closeConnection.
 	 */
-	private class ClientWorker implements Runnable {
+	private class DynamicDiscoveryWorker implements Runnable {
 
-		private final Socket socket;
-		private final BufferedReader in;
-		private final PrintWriter out;
+		private DatagramSocket dSocket;
 		private final long sessionId;
 
-		public ClientWorker(Socket socket) throws IOException {
-			this.socket = socket;
-			in = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
-			out = new PrintWriter(new OutputStreamWriter(
-					socket.getOutputStream()));
+		private byte[] buf;
+		private DatagramPacket udpPacket;
+		private String msgString;
+
+		private InetAddress destIP;
+
+		public DynamicDiscoveryWorker() throws IOException {
+
+			buf = new byte[ComputingEngProtocol.BUFFER_SIZE];
+			udpPacket = new DatagramPacket(buf, buf.length);
 
 			Session newSession = createSession();
 			sessionId = newSession.getSessionId();
-			UdpLineInterfaceController.this.clientWorkers.put(sessionId, this);
+			UdpLineInterfaceController.this.dynamicDiscoveryWorker.put(
+					sessionId, this);
 			startSession(sessionId);
 		}
 
 		@Override
 		public void run() {
-			String line;
+
 			try {
-				while ((line = in.readLine()) != null) {
-					try {
-						Message msg = getProtocolHandler()
-								.getProtocolSerializer().deserialize(
-										line.getBytes());
-						UdpLineInterfaceController.this.onMessage(sessionId,
-								msg);
-					} catch (InvalidMessageException e) {
-						UdpLineInterfaceController.this.onInvalidMessage(
-								sessionId, e);
-					}
-				}
-				UdpLineInterfaceController.this.closeSession(sessionId);
-			} catch (IOException ex) {
-				Logger.getLogger(UdpLineInterfaceController.class.getName())
-						.log(Level.SEVERE, ex.getMessage(), ex);
+
+				mcSocket.receive(udpPacket);
+				destIP = udpPacket.getAddress();
+				msgString = new String(udpPacket.getData(),
+						udpPacket.getOffset(), udpPacket.getLength());
+
+				Message msg = getProtocolHandler().getProtocolSerializer()
+						.deserialize(msgString.getBytes());
+
+				System.out.println("ComputingEngine has received:");
+				System.out.println(msgString);
+				System.out.println(msg.getType());
+
+				UdpLineInterfaceController.this.onMessage(sessionId, msg);
+			} catch (InvalidMessageException e) {
+				UdpLineInterfaceController.this.onInvalidMessage(sessionId,
+						e);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
+
+			UdpLineInterfaceController.this.closeSession(sessionId);
 		}
 
 		/**
@@ -208,26 +134,31 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 		 *            application-level message
 		 */
 		public void send(String data) {
-			LOG.log(Level.INFO,
-					"Sending wire-level data over TCP (session:{0}) : {1}",
-					new Object[] { sessionId, data });
-			out.println(data);
-			out.flush();
+			DatagramSocket dsocket;
+			try {
+				dsocket = new DatagramSocket(
+						ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT, destIP);
+
+				udpPacket.setData(data.getBytes());
+
+				dsocket.send(udpPacket);
+			} catch (SocketException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 		/**
-		 * Used to close the TCP connection
+		 * Used to close the UDP multicast listening socket
 		 */
 		public void closeConnection() {
-			LOG.log(Level.INFO, "Closing TCP connection (session:{0})",
-					sessionId);
-			out.flush();
-			try {
-				socket.close();
-			} catch (IOException ex) {
-				Logger.getLogger(UdpLineInterfaceController.class.getName())
-						.log(Level.SEVERE, ex.getMessage(), ex);
-			}
+
+			mcSocket.close();
+
 		}
 
 	}
@@ -245,7 +176,7 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 	public void sendMessage(long sessionId, Message message) {
 		// Retrieve the worker who is taking care of the session and connected
 		// with the client
-		ClientWorker worker = clientWorkers.get(sessionId);
+		DynamicDiscoveryWorker worker = dynamicDiscoveryWorker.get(sessionId);
 
 		if (worker == null) {
 			LOG.severe("Could not find worker for session " + sessionId);
@@ -265,7 +196,7 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 
 		// Retrieve the worker who is taking care of the session and connected
 		// with the client
-		ClientWorker worker = clientWorkers.get(sessionId);
+		DynamicDiscoveryWorker worker = dynamicDiscoveryWorker.get(sessionId);
 
 		// Ask the worker to close the connection
 		worker.closeConnection();

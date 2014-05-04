@@ -18,7 +18,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import ch.heigvd.res.toolkit.computingEngine_server.ComputingEngProtocol;
+
+import ch.heigvd.res.toolkit.smartCalc_client.SmartCalcProtocol;
 
 /**
  * This class implements a specific interface controller, which 1) uses TCP as
@@ -43,7 +44,7 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 
 	boolean shouldRun = true;
 
-	private MulticastSocket mcSocket;
+	private DatagramSocket dSocket;
 
 	private final Map<Long, ClientWorker> clientWorkers = new HashMap<>();
 
@@ -57,17 +58,14 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 
 			try {
 
-				mcSocket = new MulticastSocket(
-						ComputingEngProtocol.DEFAULT_UDP_PORT);
+				dSocket = new DatagramSocket();
 
-				mcSocket.joinGroup(InetAddress
-						.getByName(ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS));
 
-				System.out.println("Computing Engine listening multicast: "
-						+ ComputingEngProtocol.PROTOCOL_MULTICAST_ADDRESS
+				System.out.println("SmartCalculator started : "
+						+ SmartCalcProtocol.PROTOCOL_MULTICAST_ADDRESS
 						+ " over UDP port "
-						+ ComputingEngProtocol.DEFAULT_UDP_PORT);
-				new Thread(new DynamicDiscoveryWorker(mcSocket)).start();
+						+ SmartCalcProtocol.DEFAULT_UDP_PORT);
+				new Thread(new DynamicDiscoveryWorker()).start();
 
 			} catch (UnknownHostException u) {
 				// TODO Auto-generated catch block
@@ -84,70 +82,102 @@ public class UdpLineInterfaceController extends AbstractInterfaceController {
 
 	private class DynamicDiscoveryWorker implements Runnable {
 
-		private MulticastSocket mcSocket;
+
 		private byte[] buf;
 		private DatagramPacket udpPacket;
 		private String msg;
 
-		public DynamicDiscoveryWorker(MulticastSocket mcSocket)
+		public DynamicDiscoveryWorker()
 				throws IOException {
 
-			this.mcSocket = mcSocket;
-			buf = new byte[ComputingEngProtocol.BUFFER_SIZE];
-			udpPacket = new DatagramPacket(buf, buf.length);
+
+			buf = new byte[SmartCalcProtocol.BUFFER_SIZE];
+			udpPacket = new DatagramPacket(buf, buf.length,InetAddress.getByName(SmartCalcProtocol.PROTOCOL_MULTICAST_ADDRESS),SmartCalcProtocol.DEFAULT_UDP_PORT);
 
 		}
 
 		@Override
 		public void run() {
 
-			while (true) {
-				try {
+			System.out.println("Client multicasting HELLO");
+			Message hello = new Message(
+					SmartCalcProtocol.MessageType.MSG_HELLO);
 
-					mcSocket.receive(udpPacket);
-					msg = new String(udpPacket.getData(),
-							udpPacket.getOffset(), udpPacket.getLength());
+			hello.setAttribute("command", SmartCalcProtocol.MessageType.MSG_HELLO);
 
-					Message msgHello = getProtocolHandler()
-							.getProtocolSerializer()
-							.deserialize(msg.getBytes());
-
-					System.out.println("ComputingEngine has received:");
-					System.out.println(msg);
-					System.out.println(msgHello.getType());
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvalidMessageException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-
-		public void sendHereIAm(InetAddress dstIP) throws SocketException {
-			DatagramSocket dsocket = new DatagramSocket(
-					ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT, dstIP);
-
-			Message hereIAm = new Message(
-					ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
-
-			hereIAm.setAttribute("command", ComputingEngProtocol.MSG_HERE_I_AM);
-			hereIAm.setAttribute("arguments",
-					ComputingEngProtocol.DEFAULT_TCP_PORT);
-			hereIAm.setAttribute("arguments",
-					ComputingEngProtocol.PROTOCOL_COMPUTING_ENGINE_IP);
 			udpPacket.setData(getProtocolHandler().getProtocolSerializer()
-					.serialize(hereIAm));
-
+					.serialize(hello));
+			
 			try {
-
-				dsocket.send(udpPacket);
+				dSocket.send(udpPacket);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			DatagramPacket respPacket = new DatagramPacket(buf, buf.length);
+			try {
+				dSocket.receive(respPacket);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			try {
+				Message response = getProtocolHandler().getProtocolSerializer().deserialize(respPacket.getData());
+				System.out.println(response);
+			} catch (InvalidMessageException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+//			while (true) {
+//				try {
+//					
+//					
+//					mcSocket.receive(udpPacket);
+//					msg = new String(udpPacket.getData(),
+//							udpPacket.getOffset(), udpPacket.getLength());
+//
+//					Message msgHello = getProtocolHandler()
+//							.getProtocolSerializer()
+//							.deserialize(msg.getBytes());
+//
+//					System.out.println("ComputingEngine has received:");
+//					System.out.println(msg);
+//					System.out.println(msgHello.getType());
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				} catch (InvalidMessageException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//			}
 		}
+
+//		public void sendHereIAm(InetAddress dstIP) throws SocketException {
+//			DatagramSocket dsocket = new DatagramSocket(
+//					ComputingEngProtocol.DEFAULT_UDP_RESPONSE_PORT, dstIP);
+//
+//			Message hereIAm = new Message(
+//					ComputingEngProtocol.MessageType.MSG_HERE_I_AM);
+//
+//			hereIAm.setAttribute("command", ComputingEngProtocol.MSG_HERE_I_AM);
+//			hereIAm.setAttribute("arguments",
+//					ComputingEngProtocol.DEFAULT_TCP_PORT);
+//			hereIAm.setAttribute("arguments",
+//					ComputingEngProtocol.PROTOCOL_COMPUTING_ENGINE_IP);
+//			udpPacket.setData(getProtocolHandler().getProtocolSerializer()
+//					.serialize(hereIAm));
+//
+//			try {
+//
+//				dsocket.send(udpPacket);
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		}
 
 	}
 
